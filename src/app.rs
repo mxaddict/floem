@@ -57,7 +57,7 @@ pub fn launch_layer<V: IntoView + 'static>(
     app_view: impl FnOnce() -> V + 'static,
 ) {
     let window_config = WindowConfig::default().with_layer_shell_config(cfg);
-    Application::new()
+    Application::new_wayland()
         .window(move |_| app_view(), Some(window_config))
         .run()
 }
@@ -129,9 +129,28 @@ impl Default for Application {
 
 impl Application {
     pub fn new() -> Self {
-        let event_loop = EventLoopBuilder::with_user_event()
-            .build()
-            .expect("can't start the event loop");
+        Self::with_backend(false)
+    }
+
+    /// Construct an `Application` that pins the winit backend to Wayland.
+    ///
+    /// Required for `launch_layer` because `zwlr_layer_surface_v1` is a
+    /// Wayland-native protocol; if the event loop falls back to X11
+    /// (e.g. because `WAYLAND_DISPLAY` is unset in the shell environment)
+    /// the layer-shell code path is silently skipped.
+    #[cfg(any(target_os = "linux", target_os = "freebsd"))]
+    pub fn new_wayland() -> Self {
+        Self::with_backend(true)
+    }
+
+    fn with_backend(#[allow(unused_variables)] force_wayland: bool) -> Self {
+        let mut builder = EventLoopBuilder::with_user_event();
+        #[cfg(any(target_os = "linux", target_os = "freebsd"))]
+        if force_wayland {
+            use floem_winit::platform::wayland::EventLoopBuilderExtWayland;
+            builder.with_wayland();
+        }
+        let event_loop = builder.build().expect("can't start the event loop");
         let event_loop_proxy = event_loop.create_proxy();
         *EVENT_LOOP_PROXY.lock() = Some(event_loop_proxy.clone());
         unsafe {

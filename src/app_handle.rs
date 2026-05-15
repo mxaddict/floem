@@ -296,6 +296,8 @@ impl ApplicationHandle {
             mac_os_config,
             web_config,
             font_embolden,
+            #[cfg(any(target_os = "linux", target_os = "freebsd"))]
+            layer_shell_config,
         }: WindowConfig,
     ) {
         let logical_size = size.map(|size| LogicalSize::new(size.width, size.height));
@@ -414,6 +416,13 @@ impl ApplicationHandle {
             if let Some(hide) = mac.titlebar_buttons_hidden {
                 window_builder = window_builder.with_titlebar_buttons_hidden(hide)
             }
+        }
+
+        #[cfg(any(target_os = "linux", target_os = "freebsd"))]
+        if let Some(lsc) = layer_shell_config {
+            use floem_winit::platform::wayland::WindowBuilderExtWayland;
+            window_builder = window_builder
+                .with_layer_shell(crate::window::LayerShellConfig::into(lsc));
         }
 
         let Ok(window) = window_builder.build(event_loop) else {

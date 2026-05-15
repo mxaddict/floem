@@ -215,6 +215,8 @@ mod window_id;
 mod window_tracking;
 
 pub use app::{launch, quit_app, AppEvent, Application};
+#[cfg(any(target_os = "linux", target_os = "freebsd"))]
+pub use app::launch_layer;
 pub use app_state::AppState;
 pub use clipboard::{Clipboard, ClipboardError};
 pub use floem_reactive as reactive;
@@ -227,6 +229,8 @@ pub use screen_layout::ScreenLayout;
 pub use taffy;
 pub use view::{recursively_layout_view, AnyView, IntoView, View};
 pub use window::{close_window, new_window};
+#[cfg(any(target_os = "linux", target_os = "freebsd"))]
+pub use window::{Anchor, KeyboardInteractivity, Layer, LayerShellConfig};
 pub use window_id::{Urgency, WindowIdExt};
 
 pub mod prelude {

@@ -40,6 +40,9 @@ pub struct WindowConfig {
     // Only meaningful on Wayland-capable unix targets.
     #[cfg(any(target_os = "linux", target_os = "freebsd"))]
     pub(crate) layer_shell_config: Option<LayerShellConfig>,
+    // X11 dock/launcher attributes. Ignored when the chosen backend is Wayland.
+    #[cfg(any(target_os = "linux", target_os = "freebsd"))]
+    pub(crate) x11_config: Option<X11Config>,
 }
 
 impl Default for WindowConfig {
@@ -63,6 +66,8 @@ impl Default for WindowConfig {
             web_config: None,
             #[cfg(any(target_os = "linux", target_os = "freebsd"))]
             layer_shell_config: None,
+            #[cfg(any(target_os = "linux", target_os = "freebsd"))]
+            x11_config: None,
         }
     }
 }
@@ -238,6 +243,16 @@ impl WindowConfig {
     #[cfg(any(target_os = "linux", target_os = "freebsd"))]
     pub fn with_layer_shell_config(mut self, cfg: LayerShellConfig) -> Self {
         self.layer_shell_config = Some(cfg);
+        self
+    }
+
+    /// Set X11 dock/launcher attributes for this window.
+    ///
+    /// Only meaningful on unix targets where the X11 backend is selected.
+    /// Ignored if winit ends up using the Wayland backend.
+    #[cfg(any(target_os = "linux", target_os = "freebsd"))]
+    pub fn with_x11_config(mut self, cfg: X11Config) -> Self {
+        self.x11_config = Some(cfg);
         self
     }
 }
@@ -421,6 +436,61 @@ impl Default for LayerShellConfig {
             keyboard_interactivity: KeyboardInteractivity::OnDemand,
             namespace: String::from("floem"),
             output: None,
+        }
+    }
+}
+
+/// X11 launcher / dock attributes, accessible via
+/// [`WindowConfig::with_x11_config`].
+///
+/// Only compiled on unix targets (Linux / FreeBSD). Has no effect if winit
+/// picks the Wayland backend at runtime.
+#[cfg(any(target_os = "linux", target_os = "freebsd"))]
+#[derive(Debug, Clone, Default)]
+pub struct X11Config {
+    /// `_NET_WM_WINDOW_TYPE` atoms set on the window. Empty list lets the WM
+    /// pick its default (Normal).
+    pub window_types: Vec<X11WindowType>,
+    /// If true, the window is created with the X11 override-redirect flag set,
+    /// bypassing the window manager entirely. The app is then responsible for
+    /// any keyboard grab / focus handling.
+    pub override_redirect: bool,
+}
+
+/// Subset of `_NET_WM_WINDOW_TYPE` values that are useful for launcher /
+/// dock-style apps. Mirrors `floem_winit::platform::x11::XWindowType`.
+#[cfg(any(target_os = "linux", target_os = "freebsd"))]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum X11WindowType {
+    Normal,
+    Dock,
+    Splash,
+    Utility,
+    Dialog,
+    Toolbar,
+    Menu,
+    DropdownMenu,
+    PopupMenu,
+    Tooltip,
+    Notification,
+}
+
+#[cfg(any(target_os = "linux", target_os = "freebsd"))]
+impl From<X11WindowType> for floem_winit::platform::x11::XWindowType {
+    fn from(t: X11WindowType) -> Self {
+        use floem_winit::platform::x11::XWindowType as W;
+        match t {
+            X11WindowType::Normal => W::Normal,
+            X11WindowType::Dock => W::Dock,
+            X11WindowType::Splash => W::Splash,
+            X11WindowType::Utility => W::Utility,
+            X11WindowType::Dialog => W::Dialog,
+            X11WindowType::Toolbar => W::Toolbar,
+            X11WindowType::Menu => W::Menu,
+            X11WindowType::DropdownMenu => W::DropdownMenu,
+            X11WindowType::PopupMenu => W::PopupMenu,
+            X11WindowType::Tooltip => W::Tooltip,
+            X11WindowType::Notification => W::Notification,
         }
     }
 }

@@ -298,6 +298,8 @@ impl ApplicationHandle {
             font_embolden,
             #[cfg(any(target_os = "linux", target_os = "freebsd"))]
             layer_shell_config,
+            #[cfg(any(target_os = "linux", target_os = "freebsd"))]
+            x11_config,
         }: WindowConfig,
     ) {
         let logical_size = size.map(|size| LogicalSize::new(size.width, size.height));
@@ -423,6 +425,19 @@ impl ApplicationHandle {
             use floem_winit::platform::wayland::WindowBuilderExtWayland;
             window_builder = window_builder
                 .with_layer_shell(crate::window::LayerShellConfig::into(lsc));
+        }
+
+        #[cfg(any(target_os = "linux", target_os = "freebsd"))]
+        if let Some(x11) = x11_config {
+            use floem_winit::platform::x11::WindowBuilderExtX11;
+            let types: Vec<floem_winit::platform::x11::XWindowType> =
+                x11.window_types.into_iter().map(Into::into).collect();
+            if !types.is_empty() {
+                window_builder = window_builder.with_x11_window_type(types);
+            }
+            if x11.override_redirect {
+                window_builder = window_builder.with_override_redirect(true);
+            }
         }
 
         let Ok(window) = window_builder.build(event_loop) else {

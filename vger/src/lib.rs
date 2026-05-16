@@ -70,9 +70,28 @@ impl VgerRenderer {
         let surface_caps = surface.get_capabilities(&adapter);
         let texture_format = surface_caps
             .formats
-            .into_iter()
+            .iter()
+            .copied()
             .find(|it| matches!(it, TextureFormat::Rgba8Unorm | TextureFormat::Bgra8Unorm))
             .ok_or_else(|| anyhow::anyhow!("surface should support Rgba8Unorm or Bgra8Unorm"))?;
+
+        // Prefer PreMultiplied so transparent windows (smoked-glass overlays,
+        // popovers, etc.) actually composite alpha against the desktop
+        // instead of being treated as opaque. `Auto` lands on `Opaque` on
+        // most Wayland setups, which discards the alpha channel.
+        let alpha_mode = if surface_caps
+            .alpha_modes
+            .contains(&wgpu::CompositeAlphaMode::PreMultiplied)
+        {
+            wgpu::CompositeAlphaMode::PreMultiplied
+        } else if surface_caps
+            .alpha_modes
+            .contains(&wgpu::CompositeAlphaMode::PostMultiplied)
+        {
+            wgpu::CompositeAlphaMode::PostMultiplied
+        } else {
+            wgpu::CompositeAlphaMode::Auto
+        };
 
         let config = wgpu::SurfaceConfiguration {
             usage: wgpu::TextureUsages::RENDER_ATTACHMENT,
@@ -80,7 +99,7 @@ impl VgerRenderer {
             width,
             height,
             present_mode: wgpu::PresentMode::Fifo,
-            alpha_mode: wgpu::CompositeAlphaMode::Auto,
+            alpha_mode,
             view_formats: vec![],
             desired_maximum_frame_latency: 2,
         };

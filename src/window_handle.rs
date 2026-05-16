@@ -150,6 +150,7 @@ impl WindowHandle {
             scale,
             size.get_untracked() * scale,
             font_embolden,
+            transparent,
         );
         let mut window_handle = Self {
             window: Some(window),

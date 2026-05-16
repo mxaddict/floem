@@ -42,6 +42,7 @@ impl VelloRenderer {
         height: u32,
         scale: f64,
         _font_embolden: f32,
+        transparent: bool,
     ) -> Result<Self> {
         let GpuResources {
             surface,
@@ -73,9 +74,29 @@ impl VelloRenderer {
         let surface_caps = surface.get_capabilities(&adapter);
         let texture_format = surface_caps
             .formats
-            .into_iter()
+            .iter()
+            .copied()
             .find(|it| matches!(it, TextureFormat::Rgba8Unorm | TextureFormat::Bgra8Unorm))
             .ok_or_else(|| anyhow::anyhow!("surface should support Rgba8Unorm or Bgra8Unorm"))?;
+
+        // Opaque windows: prefer `Opaque` so the compositor ignores per-pixel
+        // alpha (sub-pixel SDF / text-AA edges would otherwise leak the
+        // framebuffer through). Transparent windows: prefer PreMultiplied so
+        // alpha composites correctly against the desktop.
+        let alpha_mode = if !transparent
+            && surface_caps
+                .alpha_modes
+                .contains(&wgpu::CompositeAlphaMode::Opaque)
+        {
+            wgpu::CompositeAlphaMode::Opaque
+        } else if surface_caps
+            .alpha_modes
+            .contains(&wgpu::CompositeAlphaMode::PreMultiplied)
+        {
+            wgpu::CompositeAlphaMode::PreMultiplied
+        } else {
+            wgpu::CompositeAlphaMode::Auto
+        };
 
         let config = wgpu::SurfaceConfiguration {
             usage: wgpu::TextureUsages::RENDER_ATTACHMENT,
@@ -83,7 +104,7 @@ impl VelloRenderer {
             width,
             height,
             present_mode: wgpu::PresentMode::Fifo,
-            alpha_mode: wgpu::CompositeAlphaMode::Auto,
+            alpha_mode,
             view_formats: vec![],
             desired_maximum_frame_latency: 2,
         };

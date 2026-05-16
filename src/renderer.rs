@@ -80,6 +80,7 @@ impl<W: wgpu::WindowHandle> Renderer<W> {
         scale: f64,
         size: Size,
         font_embolden: f32,
+        transparent: bool,
     ) -> Self
     where
         W: Clone + 'static,
@@ -99,6 +100,7 @@ impl<W: wgpu::WindowHandle> Renderer<W> {
                 size.height as u32,
                 scale,
                 font_embolden,
+                transparent,
             ) {
                 Ok(vger) => return Self::Vello(vger),
                 Err(err) => Some(err),
@@ -115,6 +117,7 @@ impl<W: wgpu::WindowHandle> Renderer<W> {
                 size.height as u32,
                 scale,
                 font_embolden,
+                transparent,
             ) {
                 Ok(vger) => return Self::Vger(vger),
                 Err(err) => Some(err),

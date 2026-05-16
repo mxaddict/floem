@@ -1188,6 +1188,10 @@ pub enum PaintState {
         window: Arc<dyn wgpu::WindowHandle>,
         rx: crossbeam::channel::Receiver<Result<GpuResources, GpuResourceError>>,
         font_embolden: f32,
+        /// Forwarded from `WindowConfig::with_transparent` so the renderer
+        /// can pick the right wgpu surface alpha mode (Opaque vs
+        /// PreMultiplied) when GPU resources finish being acquired.
+        transparent: bool,
         /// This field holds an instance of `Renderer::Uninitialized` until the GPU resources are acquired,
         /// which will be returned in `PaintState::renderer` and `PaintState::renderer_mut`.
         /// All calls to renderer methods will be no-ops until the renderer is initialized.
@@ -1209,11 +1213,13 @@ impl PaintState {
         scale: f64,
         size: Size,
         font_embolden: f32,
+        transparent: bool,
     ) -> Self {
         Self::PendingGpuResources {
             window,
             rx,
             font_embolden,
+            transparent,
             renderer: Renderer::Uninitialized { scale, size },
         }
     }
@@ -1223,6 +1229,7 @@ impl PaintState {
             window,
             rx,
             font_embolden,
+            transparent,
             renderer,
         } = self
         {
@@ -1233,6 +1240,7 @@ impl PaintState {
                 renderer.scale(),
                 renderer.size(),
                 *font_embolden,
+                *transparent,
             );
             *self = PaintState::Initialized { renderer };
         } else {

@@ -39,6 +39,7 @@ impl VgerRenderer {
         height: u32,
         scale: f64,
         font_embolden: f32,
+        transparent: bool,
     ) -> Result<Self> {
         let GpuResources {
             surface,
@@ -75,11 +76,21 @@ impl VgerRenderer {
             .find(|it| matches!(it, TextureFormat::Rgba8Unorm | TextureFormat::Bgra8Unorm))
             .ok_or_else(|| anyhow::anyhow!("surface should support Rgba8Unorm or Bgra8Unorm"))?;
 
-        // Prefer PreMultiplied so transparent windows (smoked-glass overlays,
-        // popovers, etc.) actually composite alpha against the desktop
-        // instead of being treated as opaque. `Auto` lands on `Opaque` on
-        // most Wayland setups, which discards the alpha channel.
-        let alpha_mode = if surface_caps
+        // Opaque windows: prefer `Opaque` so the compositor ignores per-pixel
+        // alpha. Otherwise sub-pixel SDF / text-AA edges (where the texture
+        // alpha is < 1) leak the framebuffer through to the desktop.
+        //
+        // Transparent windows (smoked-glass overlays, popovers, layer-shell
+        // surfaces): prefer PreMultiplied so alpha composites correctly
+        // against the desktop. `Auto` lands on `Opaque` on most Wayland
+        // setups, which would discard the alpha channel.
+        let alpha_mode = if !transparent
+            && surface_caps
+                .alpha_modes
+                .contains(&wgpu::CompositeAlphaMode::Opaque)
+        {
+            wgpu::CompositeAlphaMode::Opaque
+        } else if surface_caps
             .alpha_modes
             .contains(&wgpu::CompositeAlphaMode::PreMultiplied)
         {

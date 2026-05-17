@@ -27,6 +27,8 @@ use winit::{
     window::{Theme, WindowId},
 };
 
+#[cfg(any(target_os = "linux", target_os = "freebsd"))]
+use crate::window::LayerShellConfig;
 use crate::{
     action::{Timer, TimerToken},
     inspector::{Capture, profiler::Profile},
@@ -34,8 +36,6 @@ use crate::{
     view::IntoView,
     window::{WindowConfig, WindowCreation},
 };
-#[cfg(any(target_os = "linux", target_os = "freebsd"))]
-use crate::window::LayerShellConfig;
 use handle::ApplicationHandle;
 
 pub(crate) type AppEventCallback = dyn Fn(AppEvent);

@@ -224,9 +224,9 @@ pub mod receiver_signal {
 pub use box_tree::{BoxTree, ElementId, ElementMeta, FocusNavMeta};
 pub(crate) use box_tree::{bump_focus_nav_meta_revision, focus_nav_meta_revision};
 
-pub use app::{AppConfig, AppEvent, Application, launch, quit_app, reopen};
 #[cfg(any(target_os = "linux", target_os = "freebsd"))]
 pub use app::launch_layer;
+pub use app::{AppConfig, AppEvent, Application, launch, quit_app, reopen};
 pub use floem_reactive as reactive;
 pub use floem_renderer::Renderer;
 pub use floem_renderer::Svg as RendererSvg;
@@ -250,11 +250,11 @@ pub use understory_focus;
 pub use view::ViewId;
 pub use view::{AnyView, HasViewId, IntoView, LazyView, ParentView, View};
 pub use view::{Stack, StackOffset};
+#[cfg(any(target_os = "linux", target_os = "freebsd"))]
+pub use window::{Anchor, KeyboardInteractivity, Layer, LayerShellConfig};
 pub use window::{
     Urgency, WindowIdExt, WindowState, close_window, new_window, request_close_window,
 };
-#[cfg(any(target_os = "linux", target_os = "freebsd"))]
-pub use window::{Anchor, KeyboardInteractivity, Layer, LayerShellConfig};
 
 #[doc(hidden)]
 pub use app::take_close_window_event_count;

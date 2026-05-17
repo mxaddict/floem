@@ -616,10 +616,8 @@ impl ApplicationHandle {
         #[cfg(any(target_os = "linux", target_os = "freebsd"))]
         if let Some(lsc) = layer_shell_config {
             use winit::platform::wayland::WindowAttributesWayland;
-            let wayland_attrs =
-                WindowAttributesWayland::default().with_layer_shell(lsc.into());
-            window_attributes =
-                window_attributes.with_platform_attributes(Box::new(wayland_attrs));
+            let wayland_attrs = WindowAttributesWayland::default().with_layer_shell(lsc.into());
+            window_attributes = window_attributes.with_platform_attributes(Box::new(wayland_attrs));
         }
 
         let Ok(window) = event_loop.create_window(window_attributes) else {

@@ -703,7 +703,10 @@ impl Default for LayerShellConfig {
             anchor: Anchor::TOP | Anchor::LEFT | Anchor::RIGHT,
             exclusive_zone: -1,
             margin: (0, 0, 0, 0),
-            keyboard_interactivity: KeyboardInteractivity::Exclusive,
+            // OnDemand by default — see winit's LayerShellAttributes default for the
+            // rationale (Exclusive behaves like a lockscreen and suppresses every
+            // compositor binding including window-close shortcuts).
+            keyboard_interactivity: KeyboardInteractivity::OnDemand,
             namespace: String::from("floem"),
             output: None,
         }

@@ -17,6 +17,13 @@ pub use winit::window::Theme;
 pub use winit::window::WindowButtons;
 pub use winit::window::WindowId;
 pub use winit::window::WindowLevel;
+// Re-export layer-shell types; only available on Wayland-capable unix targets.
+#[cfg(any(target_os = "linux", target_os = "freebsd"))]
+pub use winit::platform::wayland::Anchor;
+#[cfg(any(target_os = "linux", target_os = "freebsd"))]
+pub use winit::platform::wayland::KeyboardInteractivity;
+#[cfg(any(target_os = "linux", target_os = "freebsd"))]
+pub use winit::platform::wayland::Layer;
 
 use crate::AnyView;
 use crate::app::{AppUpdateEvent, add_app_update_event};
@@ -51,6 +58,9 @@ pub struct WindowConfig {
     pub(crate) mac_os_config: Option<MacOSWindowConfig>,
     pub(crate) win_os_config: Option<WinOSWindowConfig>,
     pub(crate) web_config: Option<WebWindowConfig>,
+    // Only meaningful on Wayland-capable unix targets.
+    #[cfg(any(target_os = "linux", target_os = "freebsd"))]
+    pub(crate) layer_shell_config: Option<LayerShellConfig>,
 }
 
 impl Default for WindowConfig {
@@ -79,6 +89,8 @@ impl Default for WindowConfig {
             mac_os_config: None,
             win_os_config: None,
             web_config: None,
+            #[cfg(any(target_os = "linux", target_os = "freebsd"))]
+            layer_shell_config: None,
         }
     }
 }
@@ -280,6 +292,18 @@ impl WindowConfig {
             });
             self.web_config = Some(new_config);
         }
+        self
+    }
+
+    /// Set Wayland layer-shell configuration for this window.
+    ///
+    /// Only meaningful on Wayland-capable unix targets (Linux / FreeBSD).
+    /// The window will be created as a `zwlr_layer_surface_v1` instead of an
+    /// `xdg_toplevel`; compositors that don't support the protocol will return
+    /// an error from `Window::new` and fall back to a regular toplevel.
+    #[cfg(any(target_os = "linux", target_os = "freebsd"))]
+    pub fn with_layer_shell(mut self, cfg: LayerShellConfig) -> Self {
+        self.layer_shell_config = Some(cfg);
         self
     }
 }
@@ -645,6 +669,74 @@ impl WebWindowConfig {
     pub fn canvas_id(mut self, val: impl Into<String>) -> Self {
         self.canvas_id = val.into();
         self
+    }
+}
+
+/// Wayland `zwlr_layer_surface_v1` configuration, accessible via
+/// [`WindowConfig::with_layer_shell`].
+///
+/// Only compiled on Wayland-capable unix targets (Linux / FreeBSD).
+#[cfg(any(target_os = "linux", target_os = "freebsd"))]
+#[derive(Debug, Clone)]
+pub struct LayerShellConfig {
+    /// Z-layer for the surface.
+    pub layer: Layer,
+    /// Edges the surface is anchored to.
+    pub anchor: Anchor,
+    /// Exclusive zone. `-1` = overlay (ignore other zones), `0` = no reservation.
+    pub exclusive_zone: i32,
+    /// Margins `(top, right, bottom, left)` in surface-local pixels.
+    pub margin: (i32, i32, i32, i32),
+    /// How the surface participates in keyboard focus.
+    pub keyboard_interactivity: KeyboardInteractivity,
+    /// Namespace hint used by compositors for debugging / IPC.
+    pub namespace: String,
+    /// Output to place the surface on. `None` lets the compositor pick.
+    pub output: Option<winit::monitor::MonitorHandle>,
+}
+
+#[cfg(any(target_os = "linux", target_os = "freebsd"))]
+impl Default for LayerShellConfig {
+    fn default() -> Self {
+        Self {
+            layer: Layer::Top,
+            anchor: Anchor::TOP | Anchor::LEFT | Anchor::RIGHT,
+            exclusive_zone: -1,
+            margin: (0, 0, 0, 0),
+            keyboard_interactivity: KeyboardInteractivity::Exclusive,
+            namespace: String::from("floem"),
+            output: None,
+        }
+    }
+}
+
+#[cfg(any(target_os = "linux", target_os = "freebsd"))]
+impl From<LayerShellConfig> for winit::platform::wayland::LayerShellAttributes {
+    fn from(cfg: LayerShellConfig) -> Self {
+        winit::platform::wayland::LayerShellAttributes {
+            layer: match cfg.layer {
+                Layer::Background => winit::platform::wayland::Layer::Background,
+                Layer::Bottom => winit::platform::wayland::Layer::Bottom,
+                Layer::Top => winit::platform::wayland::Layer::Top,
+                Layer::Overlay => winit::platform::wayland::Layer::Overlay,
+            },
+            anchor: winit::platform::wayland::Anchor::from_bits_truncate(cfg.anchor.bits()),
+            exclusive_zone: cfg.exclusive_zone,
+            margin: cfg.margin,
+            keyboard_interactivity: match cfg.keyboard_interactivity {
+                KeyboardInteractivity::None => {
+                    winit::platform::wayland::KeyboardInteractivity::None
+                }
+                KeyboardInteractivity::OnDemand => {
+                    winit::platform::wayland::KeyboardInteractivity::OnDemand
+                }
+                KeyboardInteractivity::Exclusive => {
+                    winit::platform::wayland::KeyboardInteractivity::Exclusive
+                }
+            },
+            namespace: cfg.namespace,
+            output: cfg.output,
+        }
     }
 }
 

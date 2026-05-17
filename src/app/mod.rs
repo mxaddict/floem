@@ -32,6 +32,8 @@ use crate::{
     view::IntoView,
     window::{WindowConfig, WindowCreation},
 };
+#[cfg(any(target_os = "linux", target_os = "freebsd"))]
+use crate::window::LayerShellConfig;
 use handle::ApplicationHandle;
 
 pub(crate) type AppEventCallback = dyn Fn(AppEvent);
@@ -100,6 +102,22 @@ impl AppConfig {
 #[cfg_attr(debug_assertions, track_caller)]
 pub fn launch<V: IntoView + 'static>(app_view: impl FnOnce() -> V + 'static) {
     Application::new().window(move |_| app_view(), None).run()
+}
+
+/// Initializes and runs an application as a Wayland `zwlr_layer_surface_v1`.
+///
+/// Sugar over `Application::new().window(...).run()` with the supplied
+/// [`LayerShellConfig`] wired into a [`WindowConfig`]. Only compiled on
+/// Wayland-capable unix targets (Linux / FreeBSD).
+#[cfg(any(target_os = "linux", target_os = "freebsd"))]
+pub fn launch_layer<V: IntoView + 'static>(
+    cfg: LayerShellConfig,
+    app_view: impl FnOnce() -> V + 'static,
+) {
+    let window_config = WindowConfig::default().with_layer_shell(cfg);
+    Application::new()
+        .window(move |_| app_view(), Some(window_config))
+        .run()
 }
 
 pub enum AppEvent {
@@ -267,6 +285,7 @@ impl Application {
     pub fn new() -> Self {
         Self::new_with_config(AppConfig::default())
     }
+
     pub fn new_with_config(config: AppConfig) -> Self {
         let event_loop = EventLoop::new().expect("can't start the event loop");
 

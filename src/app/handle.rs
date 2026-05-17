@@ -454,6 +454,8 @@ impl ApplicationHandle {
             win_os_config,
             web_config,
             font_embolden,
+            #[cfg(any(target_os = "linux", target_os = "freebsd"))]
+            layer_shell_config,
         }: WindowConfig,
     ) {
         let logical_size = size.map(|size| LogicalSize::new(size.width, size.height));
@@ -609,6 +611,15 @@ impl ApplicationHandle {
             //     window_attributes = window_attributes.with_panel(panel)
             // }
             window_attributes = window_attributes.with_platform_attributes(Box::new(mac_attrs));
+        }
+
+        #[cfg(any(target_os = "linux", target_os = "freebsd"))]
+        if let Some(lsc) = layer_shell_config {
+            use winit::platform::wayland::WindowAttributesWayland;
+            let wayland_attrs =
+                WindowAttributesWayland::default().with_layer_shell(lsc.into());
+            window_attributes =
+                window_attributes.with_platform_attributes(Box::new(wayland_attrs));
         }
 
         let Ok(window) = event_loop.create_window(window_attributes) else {

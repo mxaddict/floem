@@ -115,7 +115,7 @@ pub fn launch_layer<V: IntoView + 'static>(
     app_view: impl FnOnce() -> V + 'static,
 ) {
     let window_config = WindowConfig::default().with_layer_shell(cfg);
-    Application::new()
+    Application::new_wayland()
         .window(move |_| app_view(), Some(window_config))
         .run()
 }
@@ -286,9 +286,33 @@ impl Application {
         Self::new_with_config(AppConfig::default())
     }
 
+    /// Construct an `Application` that pins the winit backend to Wayland.
+    ///
+    /// Required for `launch_layer` because `zwlr_layer_surface_v1` is a
+    /// Wayland-native protocol; if the event loop falls back to X11
+    /// (e.g. because `WAYLAND_DISPLAY` is unset in the shell environment)
+    /// the layer-shell code path is silently skipped.
+    #[cfg(any(target_os = "linux", target_os = "freebsd"))]
+    pub fn new_wayland() -> Self {
+        Self::new_wayland_with_config(AppConfig::default())
+    }
+
+    #[cfg(any(target_os = "linux", target_os = "freebsd"))]
+    pub fn new_wayland_with_config(config: AppConfig) -> Self {
+        use winit::platform::wayland::EventLoopBuilderExtWayland;
+        let event_loop = EventLoop::builder()
+            .with_wayland()
+            .build()
+            .expect("can't start the Wayland event loop");
+        Self::init(config, event_loop)
+    }
+
     pub fn new_with_config(config: AppConfig) -> Self {
         let event_loop = EventLoop::new().expect("can't start the event loop");
+        Self::init(config, event_loop)
+    }
 
+    fn init(config: AppConfig, event_loop: EventLoop) -> Self {
         #[cfg(target_os = "macos")]
         delegate::set_app_delegate();
 
